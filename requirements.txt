@@ -1,0 +1,9 @@
+# Runtime dependencies. yt-dlp is intentionally unpinned-above: platforms
+# change often, so every image build (and scripts/update-ytdlp.sh) pulls the
+# latest release.
+#   default  -> recommended extras incl. yt-dlp-ejs (YouTube JS challenges)
+#   curl-cffi -> browser impersonation (used by the Reddit extractor)
+#   deno     -> JavaScript runtime yt-dlp needs for full YouTube support
+yt-dlp[default,curl-cffi,deno]>=2026.10.26
+python-telegram-bot>=21.6,<23
+httpx>=0.27,<0.29

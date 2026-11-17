@@ -1,0 +1,48 @@
+# Zero-persistence deployment: no named volumes, no database. Downloads live
+# only in /tmp (tmpfs = RAM) and are deleted right after upload.
+services:
+  bot:
+    build: .
+    image: tg-video-bot:latest
+    env_file: .env
+    restart: unless-stopped
+    init: true
+    # Lets in-flight jobs finish (SHUTDOWN_GRACE_SECONDS) on `docker compose down`.
+    stop_grace_period: 60s
+    tmpfs:
+      # Size it for MAX_CONCURRENT_JOBS x (download + converted copy).
+      # 1g is plenty for the 50 MB cloud limit with 2 concurrent jobs.
+      - /tmp:size=${TMPFS_SIZE:-1g},mode=1777
+    # Optional cookies files, mounted read-only. Uncomment, put the files in
+    # ./cookies/ and set e.g. INSTAGRAM_COOKIES_FILE=/cookies/instagram.txt in .env
+    # volumes:
+    #   - ./cookies:/cookies:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "3"
+    # depends_on: [telegram-bot-api]   # uncomment with the service below
+
+  # --- Optional: self-hosted Telegram Bot API server (2 GB uploads) ----------
+  # 1. Get api_id / api_hash at https://my.telegram.org -> API development tools
+  # 2. Add TELEGRAM_API_ID and TELEGRAM_API_HASH to .env
+  # 3. Set TELEGRAM_API_URL=http://telegram-bot-api:8081 in .env
+  # 4. Log the bot out of the cloud API once (see README), then uncomment below
+  #    and the depends_on line above, and raise TMPFS_SIZE (e.g. 6g).
+  #
+  # telegram-bot-api:
+  #   image: aiogram/telegram-bot-api:latest
+  #   restart: unless-stopped
+  #   environment:
+  #     TELEGRAM_API_ID: ${TELEGRAM_API_ID}
+  #     TELEGRAM_API_HASH: ${TELEGRAM_API_HASH}
+  #   # Uploaded files are buffered in its working dir: keep that in RAM too.
+  #   tmpfs:
+  #     - /var/lib/telegram-bot-api:size=${BOT_API_TMPFS_SIZE:-5g}
+  #     - /tmp:size=1g
+  #   # No `ports:` - only the bot container talks to it, over the compose network.
